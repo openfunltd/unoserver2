@@ -27,7 +27,20 @@ $cmd = sprintf("soffice --headless --convert-to %s %s 2>&1 ",
     escapeshellarg($convert_to),
     escapeshellarg($source_file)
 );
+// 記錄每次轉檔的開始與耗時（寫到 php-fpm stderr，用 docker logs 看），
+// 用來確認轉檔超過兩分鐘是不是會自然發生，再決定 timeout 要設多少
+$log = [
+    'id' => basename($data_dir),
+    'ext' => strtolower(pathinfo($source_file, PATHINFO_EXTENSION)),
+    'size' => filesize($source_file),
+    'convert_to' => $convert_to,
+];
+error_log('unoserver2 convert-start ' . json_encode($log));
+$start = microtime(true);
 exec($cmd, $output, $return_var);
+$log['seconds'] = round(microtime(true) - $start, 2);
+$log['return'] = $return_var;
+error_log('unoserver2 convert-end ' . json_encode($log));
 
 $target_file = basename($source_file, pathinfo($source_file, PATHINFO_EXTENSION)) . $convert_to;
 if ('html' != $convert_to) {
